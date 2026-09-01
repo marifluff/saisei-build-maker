@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Saisei Builder</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-black text-white p-4">
+
+<div class="max-w-xl mx-auto space-y-2">
+
+<!-- TOP -->
+<div class="border p-2 space-y-1">
+  <input id="author" placeholder="Author" class="w-full text-black p-1">
+  <input id="buildName" placeholder="Build Name" class="w-full text-black p-1">
+  <textarea id="description" placeholder="Description" class="w-full text-black p-1"></textarea>
+
+  <div class="grid grid-cols-2 gap-1 mt-1">
+    <button onclick="getShareLink()" class="bg-white text-black py-1 w-full">
+  Export Link
+</button>
+
+<button onclick="promptLoadLink()" class="bg-white text-black py-1 w-full">
+  Load Link
+</button>
+  </div>
+</div>
+
+<!-- DROPDOWNS -->
+<div class="border p-2 grid grid-cols-3 gap-2">
+<div><label>Covenant</label><select id="covenant" class="text-black w-full"></select></div>
+<div><label>Race</label><select id="race" class="text-black w-full"></select></div>
+<div><label>Level</label><select id="level" class="text-black w-full"></select></div>
+
+<div><label>Artifact</label><select id="artifact" class="text-black w-full"></select></div>
+<div><label>Crest Evoke (Condition)</label><select id="crestEvoke" class="text-black w-full"></select></div>
+<div><label>Crest Invoke (Effect)</label><select id="crestInvoke" class="text-black w-full"></select></div>
+</div>
+
+<!-- STATS + CHARMS -->
+<div class="border p-2 grid grid-cols-2 gap-2">
+
+<div class="border p-2">
+  <div>Health: <span id="health">200</span></div>
+  <div>Resolve: <span id="resolve">100</span>%</div>
+  <div>Conviction: <span id="conviction">100</span>%</div>
+  <div>Fortitude: <span id="fortitude">100</span>%</div>
+  <div>Strength: <span id="strength">100</span>%</div>
+  <div>Brutality: <span id="brutality">100</span>%</div>
+  <div>Vigor: <span id="vigor">100</span>%</div>
+  <div>Weight: <span id="weight">100</span>%</div>
+  <!-- CREST BOX -->
+<div class="border mt-2 p-2 text-sm">
+  <div id="crestTitle" class="font-bold">No Crest</div>
+  <div id="crestDesc" class="opacity-80">
+    That is not dead which can eternal lie, And with strange aeons even death may die.
+  </div>
+</div>
+
+</div>
+
+<div class="border p-2">
+  <h2>Charms (<span id="charmCount">0</span>/<span id="maxCharms">0</span>)</h2>
+  <div id="charms"></div>
+  <button onclick="addCharm()" class="bg-white text-black px-2 mt-1">Add Charm</button>
+</div>
+
+</div>
+
+<!-- PASSIVES / SKILLS -->
+<div class="border p-2 grid grid-cols-2 gap-2">
+
+<div>
+  <h3>Passives</h3>
+  <div id="passives"></div>
+  <button onclick="addPassive()" class="bg-white text-black px-2 mt-1">Add Passive</button>
+</div>
+
+<div>
+  <h3>Skills</h3>
+  <div id="skills"></div>
+  <button onclick="addSkill()" class="bg-white text-black px-2 mt-1">Add Skill</button>
+</div>
+
+<div class="col-span-2">
+Total Passives/Skills Equipped (<span id="totalCount">0</span>/10)
+</div>
+
+</div>
+
+<!-- WEAPON -->
+<div class="border p-2">
+<label>Weapon</label>
+<select id="weapon" class="text-black w-full"></select>
+
+<div class="mt-1 text-sm">
+<div>M1 ?: N/A</div>
+<div>Running: N/A</div>
+<div>Aerial: N/A</div>
+<div>Counter-Feint: N/A</div>
+</div>
+</div>
+
+</div>
+
+<script>
+let charms=[], passives=[], skills=[];
+
+const EVOKES = {
+  "Goderun's": {
+    description: "When activating Flame Of Ambition,",
+    offensive: true,
+    defensive: true,
+    intensity: 3,
+    abilityReq: "Flame Of Ambition"
+  },
+  "Giant's": {
+    description: "When reaching max Posture,",
+    defensive: true,
+    offensive: false,
+    intensity: 2
+  },
+  "Pilgrim's": {
+    description: "When your Stamina gets depleted,",
+    defensive: true,
+    offensive: false,
+    intensity: 1
+  },
+  "Rot's": {
+    description: "When you take damage from Rot,",
+    defensive: true,
+    offensive: false,
+    intensity: 3,
+    abilityReq: "Rotten Conviction"
+  },
+  "Hive's": {
+    description: "When you feint,",
+    defensive: true,
+    offensive: false,
+    intensity: 1
+  },
+  "Paladin's": {
+    description: "When you naturally restore Stamina,",
+    defensive: true,
+    offensive: false,
+    intensity: 1
+  },
+  "Gunslinger's": {
+    description: "When hitting an opponent with a gun,",
+    offensive: true,
+    defensive: false,
+    intensity: 1
+  },
+  "Peace Monger's": {
+    description: "When hitting an opponent and they have full Health,",
+    offensive: true,
+    defensive: false,
+    intensity: 3
+  },
+  "Eadwyn's": {
+    description: "When hitting an opponent and they have low Health,",
+    offensive: true,
+    defensive: false,
+    intensity: 2
+  },
+  "Hunter's": {
+    description: "When hitting an opponent shortly after taking Damage,",
+    offensive: true,
+    defensive: false,
+    intensity: 1
+  },
+  "Ranger's": {
+    description: "When hitting an opponent who is far away,",
+    offensive: true,
+    defensive: false,
+    intensity: 2
+  },
+  "Dancer's": {
+    description: "When Dodging an opponent,",
+    offensive: true,
+    defensive: true,
+    intensity: 1
+      },
+  "Wanderer's": {
+    description: "Unlock an Evoke to trigger your Invoke:",
+    offensive: true,
+    defensive: true,
+    intensity: 1
+  },
+    "Allen's": {
+    description: "When hitting an opponent,",
+    offensive: true,
+    defensive: true,
+    intensity: 3
+    },
+  "Seer's": {
+    description: "When Blinking,",
+    defensive: true,
+    offensive: false,
+    intensity: 1
+  },
+  "Fool's": {
+    description: "Upon meeting a random condition,",
+    defensive: true,
+    offensive: true,
+    intensity: 4
+  }
+};
+
+const INVOKES = {
+  "Rest": {
+    description: "restore a portion of Stamina.",
+    defensive: true,
+    offensive: false
+  },
+  "Mystery": {
+    description: "Unlock an Invoke to have an effect.",
+    defensive: false,
+    offensive: false
+  },
+  "Stature": {
+    description: "restore a portion of Posture.",
+    defensive: true,
+    offensive: false
+  },
+  "Ambition": {
+    description: "activate Flame Of Ambition.",
+    offensive: true,
+    abilityReq: "Flame Of Ambition"
+  },
+  "Thirst": {
+    description: "restore a minor amount of Health.",
+    defensive: true,
+    offensive: true,
+    abilityReq: "Vampirism"
+  },
+  "Vitality": {
+    description: "gain a minor amount of Overheal.",
+    defensive: true,
+    offensive: false,
+    abilityReq: "Vital Blood"
+  },
+  "Flame": {
+    description: "your opponent bursts into flames.",
+    offensive: true
+  },
+  "Leap": {
+    description: "jump forwards.",
+    defensive: true,
+    offensive: true
+  },
+  "Faith": {
+    description: "shoot a magical orb.",
+    defensive: true,
+    offensive: true,
+    abilityReq: "Faithful"
+  },
+  "Resilience": {
+    description: "moderately deplete your status conditions.",
+    defensive: true,
+    offensive: false
+  },
+  "Curse": {
+    description: "apply a minor amount of Curse to your opponent.",
+    offensive: true
+  },
+  "Infection": {
+    description: "summon a Rot Pool on your opponent.",
+    offensive: true,
+    abilityReq: "Rotten Conviction"
+  },
+  "God Hack": {
+    description: "obliterate your opponent.",
+    offensive: true
+  },
+  "Intensity": {
+    description: "gain Tension.",
+    defensive: true,
+    offensive: true,
+    abilityReq: "Dare Devil"
+  },
+  "Flourish": {
+    description: "reduce stamina cost of your next attack.",
+    offensive: true
+  },
+  "Momentum": {
+    description: "increase power of your next attack.",
+    offensive: true
+  },
+  "Multiplicity": {
+    description: "create a lightning clone of yourself.",
+    defensive: true,
+    offensive: true
+  },
+  "Freedom": {
+    description: "temporarily mitigate the downside of one passive.",
+    defensive: true,
+    offensive: true
+  }
+};
+
+function updateCrest(){
+  const evoke = document.getElementById("crestEvoke").value;
+  const invoke = document.getElementById("crestInvoke").value;
+
+  const titleEl = document.getElementById("crestTitle");
+  const descEl = document.getElementById("crestDesc");
+
+  if(!evoke || !invoke){
+    titleEl.innerText = "No Crest";
+    descEl.innerText =
+      "That is not dead which can eternal lie, And with strange aeons even death may die.";
+    return;
+  }
+
+  const evokeData = EVOKES[evoke];
+  const invokeData = INVOKES[invoke];
+
+  titleEl.innerText = `${evoke} → ${invoke}`;
+
+  descEl.innerText =
+    `${evokeData?.description || ""} ${invokeData?.description || ""}`.trim();
+}
+
+/* --Passives-- */
+
+const PASSIVE_DATA = [
+
+  /* Abyssal */
+  {name:"Carved Soul", shrine:"Abyssal", resolve:-10},
+  {name:"Fate Bound", shrine:"Abyssal", hp:-9},
+  {name:"Vow Of Blindness", shrine:"Abyssal"},
+  {name:"Vow Of Silence", shrine:"Abyssal"},
+  {name:"Vow Of Reversal", shrine:"Abyssal"},
+
+  /* Boon */
+  {name:"Dare Devil", shrine:"Boon", hp:-15},
+  {name:"Finesse", shrine:"Boon", brutality:-5},
+
+  /* Coral Chair */
+  {name:"Ancient Gift", shrine:"Coral Chair", hp:-15},
+  {name:"Blessing By The Sea", shrine:"Coral Chair", hp:-15},
+  {name:"Bond With The Sea", shrine:"Coral Chair"},
+  {name:"Burden Of The Sea", shrine:"Coral Chair", hp:15, weight:10},
+  {name:"Infested", shrine:"Coral Chair", hp:5},
+
+  /* Eadwyn's Bolt */
+  {name:"Dengeki", shrine:"Eadwyn's Bolt", hp:-5, strength:-10},
+  {name:"Inazuma", shrine:"Eadwyn's Bolt", hp:-10},
+  {name:"Raiu", shrine:"Eadwyn's Bolt", hp:-15},
+
+  /* Elder One's Conduit */
+  {name:"Exo Skeleton Core", shrine:"Elder One's Conduit", vigor:10, weight:8},
+  {name:"Exo Skeleton Crown", shrine:"Elder One's Conduit", hp:-10, conviction:10},
+  {name:"Exo Skeleton Higher Migi", shrine:"Elder One's Conduit", strength:5, vigor:-5},
+  {name:"Exo Skeleton Higher Miki", shrine:"Elder One's Conduit", strength:5, vigor:-5},
+  {name:"Exo Skeleton Lower Migi", shrine:"Elder One's Conduit", strength:5, vigor:-5},
+  {name:"Exo Skeleton Lower Miki", shrine:"Elder One's Conduit", strength:5, vigor:-5},
+
+  /* Goderun's Flame */
+  {name:"Flame Of Ambition", shrine:"Goderun's Flame", hp:-5},
+  {name:"Lose Your Mind", shrine:"Goderun's Flame", hp:-8},
+
+  /* Invoke Bell */
+  {name:"Cho Toi", shrine:"Invoke Bell", hp:-5},
+  {name:"Shototsu", shrine:"Invoke Bell", hp:-5},
+
+  /* Rot */
+  {name:"Rotten Conviction", shrine:"Rot", hp:-10},
+  {name:"Rotten Caster", shrine:"Rot", hp:-18},
+
+  /* Sanction */
+  {name:"Faithful", shrine:"Sanction"},
+
+  /* Vampire Chair */
+  {name:"Blood Contract", shrine:"Vampire Chair", hp:15, conviction:10},
+  {name:"Frenzy", shrine:"Vampire Chair", hp:-15},
+  {name:"Vital Blood", shrine:"Vampire Chair", hp:-10},
+  {name:"Omen Blood", shrine:"Vampire Chair", hp:-10},
+  {name:"Vampirism", shrine:"Vampire Chair", hp:-20},
+  {name:"Vile Soul", shrine:"Vampire Chair", hp:-5},
+
+  /* Quest */
+  {name:"Agressor", shrine:"Quest"},
+  {name:"Bloodthirst", shrine:"Quest", hp:-10},
+  {name:"Corporalis Restrictor", shrine:"Quest"},
+  {name:"Crestfallen", shrine:"Quest", brutality:33, vigor:-33},
+  {name:"Divine Sight", shrine:"Quest"},
+  {name:"Divines Avatar", shrine:"Quest", hp:-5},
+  {name:"Ephaiagl", shrine:"Quest", hp:-20},
+  {name:"Feminine", shrine:"Quest"},
+  {name:"Honor Bound", shrine:"Quest", strength:20},
+  {name:"Pale Blood", shrine:"Quest", hp:-5},
+  {name:"Unfettered", shrine:"Quest"},
+];
+
+
+/* -- Skills -- */
+
+const SKILL_DATA = [
+
+{name:"Dancing Shadow", shrine:"Abyssal", hp:-10},
+{name:"Absysal Claw", shrine:"Abyssal", hp:-10},
+{name:"Abyssal Grip", shrine:"Abyssal", hp:-10},
+
+{name:"Bugahagl", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Mengoka", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Mgyogor", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Na'ah'ehye", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Sor'ehye", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Uh'ettere", shrine:"Apostle/Tentacle", hp:-8},
+{name:"Shugnah", shrine:"Apostle/Tentacle", hp:-8},
+
+{name:"Drop Kick", shrine:"Boon", hp:-8},
+{name:"Flowing Fists", shrine:"Boon", hp:-8},
+{name:"Leap", shrine:"Boon", hp:-8},
+{name:"Show Start", shrine:"Boon", hp:-8},
+{name:"Show Stop", shrine:"Boon", hp:-8},
+
+{name:"Stomp", shrine:"Boon", upgrade:true, hp:-8},
+{name:"Flowing Kicks", shrine:"Boon", upgrade:true, hp:-8},
+{name:"Surge Uppercut", shrine:"Boon", upgrade:true, hp:-8},
+{name:"Quick Step Kick", shrine:"Boon", upgrade:true, hp:-8},
+{name:"Whirlwind Strikes", shrine:"Boon", upgrade:true, hp:-8},
+
+{name:"Coral Blast", shrine:"Coral Chair", hp:-8},
+
+{name:"Kaminari", shrine:"Eadwyn's Bolt", hp:-8},
+{name:"Mokuteki", shrine:"Eadwyn's Bolt", hp:-8},
+{name:"Raitoningu", shrine:"Eadwyn's Bolt", hp:-8},
+{name:"Sumaito", shrine:"Eadwyn's Bolt", hp:-8},
+{name:"Ushinatta", shrine:"Eadwyn's Bolt", hp:-8},
+
+{name:"Sandaboruto", shrine:"Eadwyn's Bolt", rune:true, hp:-8},
+{name:"Erekutorishitii", shrine:"Eadwyn's Bolt", rune:true, hp:-8},
+
+{name:"Flames Of Madness", shrine:"Goderun's Flame", hp:-8},
+{name:"Goreduns Roar", shrine:"Goderun's Flame", hp:-8},
+{name:"Grasp Of Madness", shrine:"Goderun's Flame", hp:-8},
+{name:"Mind Burst", shrine:"Goderun's Flame", hp:-8},
+{name:"Mind Projection", shrine:"Goderun's Flame", hp:-8},
+{name:"Immolation", shrine:"Goderun's Flame", rune:true, hp:-8},
+
+{name:"Outburst", shrine:"Invoke Bell", hp:-8},
+{name:"Ochiru", shrine:"Invoke Bell", hp:-8},
+
+{name:"Embrace Rot", shrine:"Rot", hp:-5},
+{name:"Lash Out Rot", shrine:"Rot", hp:-8},
+{name:"Rot Barrage", shrine:"Rot", hp:-8},
+{name:"Rot Blast", shrine:"Rot", hp:-8},
+{name:"Rot Project", shrine:"Rot", hp:-8},
+{name:"Rot Release", shrine:"Rot", hp:-8},
+{name:"Bind:Rot", shrine:"Rot", rune:true, hp:-8},
+{name:"Plunge:Rot", shrine:"Rot", rune:true, hp:-8},
+
+{name:"Bind", shrine:"Sanction", hp:-8},
+{name:"Diffusion", shrine:"Sanction", hp:-8},
+{name:"Exhaust Strike", shrine:"Sanction", hp:-8},
+{name:"Jetstream", shrine:"Sanction", hp:-8},
+{name:"Judgement", shrine:"Sanction", hp:-8},
+{name:"Rising Dawn", shrine:"Sanction", hp:-8},
+{name:"False Edge", shrine:"Sanction", hp:-8},
+
+{name:"Typhoon", shrine:"Sanction", rune:true, hp:-8},
+{name:"Sovereign Of Dawn", shrine:"Sanction", rune:true, hp:-8},
+
+{name:"Plunge", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Rotational Rush", shrine:"Shrine of Sanguine", hp:-8},
+{name:"The Reaper", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Execution", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Blood Spike", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Charge Blood", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Unsheathe", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Eviscerate", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Monsoon", shrine:"Shrine of Sanguine", hp:-8},
+{name:"Bleeding Blade", shrine:"Shrine of Sanguine", hp:-8},
+
+{name:"Accusation", shrine:"Quest", hp:-8},
+{name:"Judgement Cut", shrine:"Quest", hp:-8},
+];
+let covenantPassive=null;
+function getRealPassiveCount(){
+  return passives.filter(p => p !== covenantPassive).length;
+}
+
+/* dom */
+const charmsDiv=document.getElementById("charms");
+const charmCount=document.getElementById("charmCount");
+const maxCharms=document.getElementById("maxCharms");
+const passivesDiv=document.getElementById("passives");
+const skillsDiv=document.getElementById("skills");
+const totalCount=document.getElementById("totalCount");
+const levelEl=document.getElementById("level");
+const covenantEl=document.getElementById("covenant");
+
+/* Helpers */
+function fillSelect(id, arr){
+  const el=document.getElementById(id);
+  el.innerHTML="";
+  let empty=document.createElement("option");
+  empty.textContent=" ";
+  empty.value="";
+  el.appendChild(empty);
+
+  [...new Set(arr)].sort().forEach(v=>{
+    let o=document.createElement("option");
+    o.textContent=v;
+    el.appendChild(o);
+  });
+}
+
+/* -- Data -- */
+fillSelect("covenant",["Beasts","Embers","Circus Of Crows","Chefs of Shyka","Falce Knights","Hive","Hunters","Kin of Livana","Mangroves","None","Nuckelavee","Peace Mongers","Scholars","Soundless","Templars"]);
+
+fillSelect("artifact",["Ah'legeth (Todo Clap)","Obelisk Eye","Bricha (Four Arms)","Elder Ones Avatar","Evocatum","Gn'bthnknyth (Kamui)","Mors Pierce","Old Flesh","Pouch o' Greed","Rod of Sabi","Thousand Man Pins"]);
+
+fillSelect("crestEvoke", Object.keys(EVOKES));
+fillSelect("crestInvoke", Object.keys(INVOKES));
+
+fillSelect("weapon",[
+"Anchor","Axe","Axe:Crossbow","Buster","Buster:Sword","Cannibal Blade","Cannibal Blade:Western",
+"Carn de Sarcófago","Crescent Sword","Dagger","Dagger:Chain","Drill Gauntlet","Fists","Fists:Feral","Fists:Western","Flamberge Spear",
+"Flamberge Sword","Flamberge Zweihander","Greatsword","Halberd","Hand Guillotine","Jo Staff",
+"Jo Staff:Northern","Katana","Katana:True","Mace","Naginata","Naginata:Crescent","Northern Leg",
+"Odachi","Old Longsword","Old Longsword:Fire","Rapier","Rifle","Rifle:Bayonet","Rifle:Bolt",
+"Shield","Spear","Spear:Swift","Sword","Sword:Dual","Sword:Shield","Tormentors Hammer","Whirligig Saw","Zweihander"
+]);
+
+fillSelect("race",[
+"Ancient Domani","Fire Struck","Funayurei","ElderBorne","Gashadokuro","Hebi","Kaiyo","Narahate","Sacrificium","Sukinkurora","Umani","Vile Blood",
+"Ancient","Aspid","Charred","Fukuro","Hollow Host","Kirin","Messendzher","N'ghftnah","Omen","Pale Soul",
+"Primal ElderBorne","Primal Fire Struck","Primal Fukuro","Primal Hebi","Primal Kaiyo","Primal Sacrificium","Primal Umani",
+"Kindred","Dragonian","Vermillion Domani","Huli","Primal Kirin","Primal Kirin:Rot","Glacial Kirin","Infested Ancient","Banituzi","Angloican",
+"Astarin","Gecko","Namielle","Nudibranch","Domani","False Skin Walker","True Pale Soul","True Vile Blood","Vicis","Virgultum","Antec","Asgrimr",
+"Coralyte Kaiyo","Entia","Glitchproof","Huangeow","Ivorseer","Kognnurc","Primal Ivorseer","Prophetic Woodwrought","Sanguine Sacrificium",
+"Shadrephim","Woodwrought","Ken'shi","Smither","Elder Omen","Exiled Huli","Headless","Primal Messendzher","Threader","Bulwark","Enlightened Kindred",
+"Grinch","Heriser","Human","Hyun","OldHuman","Primal Skinwalker","Skinwalker","Widowkin","Widowkueen","Dreaded Virgultum"
+]);
+
+/* -- Level -- */
+for(let i=0;i<=10;i++){
+  let o=document.createElement("option");
+  o.value=i;o.textContent=i;
+  levelEl.appendChild(o);
+}
+levelEl.onchange=updateLevel;
+covenantEl.onchange=updateCovenant;
+document.getElementById("crestInvoke").onchange = updateCrest;
+document.getElementById("crestEvoke").onchange = updateCrest;
+
+/* -- Covenant System -- */
+const covenantMap={
+"None":{name:"Warrior",hp:15},
+"Circus Of Crows":{name:"Realm Teletransportation"},
+"Embers":{name:"Goderun's Blessing"},
+"Falce Knights":{name:"Falce Weaponry"},
+"Hive":{name:"Hivemind"},
+"Hunters":{name:"Rally"},
+"Nuckelavee":{name:"Justice"},
+"Peace Mongers":{name:"Lightning Shift"},
+"Scholars":{name:"Diver's Touch"},
+"Soundless":{name:"Leshy's Tricks"},
+"Templars":{name:"Crusade"},
+"Mangroves":{name:"Poisoned Thorns"}
+};
+
+function updateCovenant(){
+  // remove old covenant passive
+  if(covenantPassive){
+    passives = passives.filter(p => p !== covenantPassive);
+  }
+
+  const data = covenantMap[covenantEl.value];
+  covenantPassive = null;
+
+  if(data){
+    covenantPassive = {
+      name: data.name + " (Covenant)",
+      ...data
+    };
+
+    passives.unshift(covenantPassive);
+  }
+
+  renderPS();
+  calc();
+}
+
+/* Update Level */
+function updateLevel(){
+  const lvl=parseInt(levelEl.value)||0;
+  maxCharms.innerText=lvl;
+  while(charms.length>lvl) charms.pop();
+  renderCharms();
+}
+
+function addCharm(){
+  if(charms.length>=parseInt(levelEl.value)) return;
+  charms.push({stat:"Resolve",tier:1});
+  renderCharms();
+}
+
+function renderCharms(){
+  charmsDiv.innerHTML="";
+  charms.forEach((c,i)=>{
+    charmsDiv.innerHTML+=`<div class="flex gap-1">
+      <select onchange="charms[${i}].stat=this.value;calc()" class="text-black">
+        ${["Vitality","Resolve","Conviction","Fortitude","Strength","Brutality","Vigor"].map(s=>`<option ${c.stat==s?"selected":""}>${s}</option>`).join("")}
+      </select>
+      <select onchange="charms[${i}].tier=parseInt(this.value);calc()" class="text-black">
+        <option value="1" ${c.tier==1?"selected":""}>Tier 1 (1%)</option>
+        <option value="2" ${c.tier==2?"selected":""}>Tier 2 (2%)</option>
+        <option value="3" ${c.tier==3?"selected":""}>Tier 3 (3%)</option>
+        </select>
+      <button onclick="charms.splice(${i},1);renderCharms()" class="bg-red-500 px-1">X</button>
+    </div>`;
+  });
+  charmCount.innerText=charms.length;
+  calc();
+}
+
+function calc() {
+  // Base stats
+  let s = {
+    health: 200,
+    resolve: 100,
+    conviction: 100,
+    fortitude: 100,
+    strength: 100,
+    brutality: 100,
+    vigor: 100,
+    weight: 100
+  };
+
+  // Charms
+  charms.forEach(c => {
+    let key = c.stat.toLowerCase();
+    if (key === "vitality") key = "health";
+    if (s.hasOwnProperty(key)) s[key] += c.tier;
+  });
+  
+  // Passives
+passives.forEach(p => {
+
+  // Covenant Passive
+  if (typeof p === "object") {
+    for (let key in p) {
+      if (key === "name") continue;
+
+      let statKey = key === "hp" ? "health" : key.toLowerCase();
+
+      if (s.hasOwnProperty(statKey)) {
+        s[statKey] += p[key];
+      }
+    }
+    return;
+  }
+
+  // Normal Passives
+  const data = PASSIVE_DATA.find(x => x.name === p);
+  if (!data) return;
+
+  for (let key in data) {
+    if (["name","shrine","rune","upgrade"].includes(key)) continue;
+
+    let statKey = key === "hp" ? "health" : key.toLowerCase();
+
+    if (s.hasOwnProperty(statKey)) {
+      s[statKey] += data[key];
+    }
+  }
+});
+
+// Skills
+skills.forEach(sk => {
+
+  if (!sk || sk === "") return;
+
+  const data = SKILL_DATA.find(x => x.name === sk);
+
+  if (!data) {
+    console.log("Skill not found:", sk);
+    return;
+  }
+
+  for (let key in data) {
+    if (["name","shrine","rune","upgrade"].includes(key)) continue;
+
+    let statKey = key === "hp" ? "health" : key.toLowerCase();
+
+    if (s.hasOwnProperty(statKey)) {
+      s[statKey] += data[key];
+    }
+  }
+
+});
+
+  // Update UI
+  health.innerText = s.health;
+  resolve.innerText = s.resolve;
+  conviction.innerText = s.conviction;
+  fortitude.innerText = s.fortitude;
+  strength.innerText = s.strength;
+  brutality.innerText = s.brutality;
+  vigor.innerText = s.vigor;
+  weight.innerText = s.weight;
+}
+
+function addPassive(){
+  if(getRealPassiveCount()+skills.length<10){
+    passives.push("");
+    renderPS();
+  }
+}
+function addSkill(){
+  if(getRealPassiveCount()+skills.length<10){
+    skills.push("");
+    renderPS();
+  }
+}
+
+function renderPS(){
+  passivesDiv.innerHTML="";
+  skillsDiv.innerHTML="";
+
+  passives.forEach((p,i)=>{
+  let locked = typeof p === "object";
+
+  passivesDiv.innerHTML += `
+  <div class="flex gap-1">
+    <select onchange="if(typeof passives[${i}]!=='object'){passives[${i}]=this.value;calc()}" class="text-black w-full" ${locked?"disabled":""}>
+      
+      <option value="" ${p===""?"selected":""}>-- Select Passive --</option>
+
+      ${[
+  ...(typeof p === "object" ? [{name: p.name}] : []),
+  ...PASSIVE_DATA
+]
+.sort((a,b)=>a.shrine?.localeCompare?.(b.shrine || "") || 0)
+.map(pData=>`<option value="${pData.name}" ${
+  (typeof p === "object" ? p.name === pData.name : p === pData.name)
+    ? "selected"
+    : ""
+}>
+  ${pData.name} (${pData.shrine || "Covenant"})
+</option>`)
+.join("")}
+    </select>
+
+    ${locked ? "" : `<button onclick="passives.splice(${i},1);renderPS();calc()" class="bg-red-500 px-1">X</button>`}
+  </div>`;
+});
+
+
+skills.forEach((s,i)=>{
+  skillsDiv.innerHTML+=`
+  <div class="flex gap-1">
+    <select onchange="skills[${i}]=this.value; calc(); renderPS()" class="text-black w-full">
+      
+      <option value="" ${s===""?"selected":""}>-- Select Skill --</option>
+
+      ${SKILL_DATA
+        .sort((a,b)=>a.shrine.localeCompare(b.shrine))
+        .map(sData=>`<option value="${sData.name}" ${s===sData.name?"selected":""}>
+          ${sData.name} (${sData.shrine}${sData.rune?", Rune":""}${sData.upgrade?", Upgrade":""})
+        </option>`)
+        .join("")}
+    </select>
+
+    <button onclick="skills.splice(${i},1);renderPS();calc()" class="bg-red-500 px-1">X</button>
+  </div>`;
+});
+
+  totalCount.innerText=getRealPassiveCount()+skills.length;
+}
+
+updateLevel();
+renderPS();
+
+function getShareLink() {
+  const build = {
+    author: document.getElementById("author").value,
+    buildName: document.getElementById("buildName").value,
+    description: document.getElementById("description").value,
+
+    covenant: document.getElementById("covenant").value,
+    race: document.getElementById("race").value,
+    level: document.getElementById("level").value,
+    artifact: document.getElementById("artifact").value,
+
+    crestEvoke: document.getElementById("crestEvoke").value,
+    crestInvoke: document.getElementById("crestInvoke").value,
+
+    passives,
+    skills,
+    charms
+  };
+
+  const encoded = btoa(JSON.stringify(build));
+
+  const shareURL = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+
+  navigator.clipboard.writeText(shareURL);
+  alert("Share link copied to clipboard!");
+}
+
+function loadBuildFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const data = params.get("data");
+
+  if (!data) return;
+
+  try {
+    const build = JSON.parse(atob(data));
+    applyBuild(build);
+  } catch (e) {
+    console.error("Failed to load share link:", e);
+  }
+}
+
+function applyBuild(data) {
+  document.getElementById("author").value = data.author || "";
+  document.getElementById("buildName").value = data.buildName || "";
+  document.getElementById("description").value = data.description || "";
+
+  document.getElementById("covenant").value = data.covenant || "None";
+  document.getElementById("race").value = data.race || "";
+  document.getElementById("level").value = data.level || 1;
+  document.getElementById("artifact").value = data.artifact || "";
+
+  document.getElementById("crestEvoke").value = data.crestEvoke || "None";
+  document.getElementById("crestInvoke").value = data.crestInvoke || "None";
+
+  passives = data.passives || [];
+  skills = data.skills || [];
+  charms = data.charms || [];
+
+  updateAll();
+}
+
+window.addEventListener("load", () => {
+  loadBuildFromURL();
+});
+
+function promptLoadLink() {
+  const url = prompt("Paste build link here:");
+
+  if (!url) return;
+
+  try {
+    const params = new URLSearchParams(url.split("?")[1]);
+    const data = params.get("data");
+
+    if (!data) throw new Error("No build data found");
+
+    const build = JSON.parse(atob(data));
+    applyBuild(build);
+
+  } catch (e) {
+    alert("Invalid build link");
+    console.error(e);
+  }
+}
+
+</script>
+
+</body>
+</html>
